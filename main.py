@@ -29,14 +29,6 @@ def parse_args():
         prog="security_scanner",
         description="Eclipse Softworks Cyber Defense Scanner",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python main.py https://example.com
-  python main.py https://example.com -m tls server
-  python main.py https://example.com -u https://example.com (alternative)
-  python main.py https://example.com/search?q=test -m rce filter
-  python main.py https://example.com --all
-        """
     )
     parser.add_argument("url", nargs="?", help="Target URL to scan (positional or with -u flag)")
     parser.add_argument("-u", "--url-flag", dest="url_flag", help="Target URL to scan (flag format)")

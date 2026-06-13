@@ -1,0 +1,72 @@
+{
+  "servers": {
+    "apache": "Apache HTTP Server",
+    "nginx": "Nginx",
+    "iis": "Microsoft IIS",
+    "lighttpd": "Lighttpd",
+    "caddy": "Caddy",
+    "gunicorn": "Gunicorn (Python)",
+    "uvicorn": "Uvicorn (Python)",
+    "tornado": "Tornado (Python)",
+    "jetty": "Eclipse Jetty (Java)",
+    "tomcat": "Apache Tomcat (Java)",
+    "openresty": "OpenResty (Nginx + Lua)",
+    "litespeed": "LiteSpeed Web Server",
+    "node": "Node.js",
+    "express": "Express.js (Node)",
+    "werkzeug": "Werkzeug (Python Flask)",
+    "cowboy": "Cowboy (Erlang)",
+    "kestrel": "Kestrel (.NET Core)",
+    "cherokee": "Cherokee Web Server",
+    "h2o": "H2O"
+  },
+  "risky_headers": [
+    "x-powered-by",
+    "x-aspnet-version",
+    "x-aspnetmvc-version",
+    "server",
+    "x-generator",
+    "x-drupal-cache",
+    "x-varnish",
+    "via",
+    "x-runtime",
+    "x-backend-server"
+  ],
+  "security_headers": [
+    {
+      "header": "strict-transport-security",
+      "label": "HSTS",
+      "severity": "CRITICAL"
+    },
+    {
+      "header": "content-security-policy",
+      "label": "CSP",
+      "severity": "HIGH"
+    },
+    {
+      "header": "x-content-type-options",
+      "label": "X-Content-Type-Options",
+      "severity": "MEDIUM"
+    },
+    {
+      "header": "x-frame-options",
+      "label": "X-Frame-Options",
+      "severity": "MEDIUM"
+    },
+    {
+      "header": "referrer-policy",
+      "label": "Referrer-Policy",
+      "severity": "LOW"
+    },
+    {
+      "header": "permissions-policy",
+      "label": "Permissions-Policy",
+      "severity": "LOW"
+    },
+    {
+      "header": "cross-origin-opener-policy",
+      "label": "COOP",
+      "severity": "MEDIUM"
+    }
+  ]
+}

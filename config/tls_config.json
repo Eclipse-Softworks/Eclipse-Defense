@@ -1,0 +1,28 @@
+{
+  "weak_ciphers": [
+    "RC4",
+    "DES",
+    "3DES",
+    "NULL",
+    "EXPORT",
+    "anon",
+    "MD5",
+    "RC2",
+    "IDEA",
+    "SEED"
+  ],
+  "weak_protocols": [
+    "SSLv3",
+    "SSLv2",
+    "TLSv1.0",
+    "TLSv1.1"
+  ],
+  "safe_protocols": [
+    "TLSv1.2",
+    "TLSv1.3"
+  ],
+  "warn_protocols": [
+    "TLSv1.1",
+    "TLSv1.0"
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "scanner": {
+    "name": "Eclipse Defense Security Scanner",
+    "version": "1.0.0",
+    "description": "Web Security Assessment Tool"
+  },
+  "settings": {
+    "timeout": 10,
+    "max_retries": 3,
+    "verify_ssl": false,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+  },
+  "modules": {
+    "tls": {
+      "enabled": true,
+      "description": "TLS/SSL Security Assessment",
+      "checks": [
+        "protocol_version",
+        "cipher_strength",
+        "certificate_validity",
+        "weak_protocols"
+      ]
+    },
+    "server": {
+      "enabled": true,
+      "description": "Server Fingerprinting & Headers Analysis",
+      "checks": [
+        "server_detection",
+        "security_headers",
+        "information_disclosure",
+        "cookie_flags"
+      ]
+    },
+    "rce": {
+      "enabled": true,
+      "description": "Remote Code Execution Detection",
+      "checks": [
+        "command_injection",
+        "ssti_detection",
+        "log4shell",
+        "xxe_detection"
+      ]
+    },
+    "file": {
+      "enabled": true,
+      "description": "File Overwrite & Path Traversal",
+      "checks": [
+        "path_traversal",
+        "file_upload_bypass",
+        "backup_files"
+      ]
+    },
+    "filter": {
+      "enabled": true,
+      "description": "Client-Side Filter Bypass",
+      "checks": [
+        "xss_detection",
+        "sql_injection",
+        "http_verb_tampering",
+        "content_type_bypass"
+      ]
+    }
+  },
+  "payload_limits": {
+    "rce_payloads": 15,
+    "xss_payloads": 20,
+    "sqli_payloads": 15,
+    "traversal_payloads": 16
+  },
+  "severity_levels": {
+    "CRITICAL": 4,
+    "HIGH": 3,
+    "MEDIUM": 2,
+    "LOW": 1,
+    "INFO": 0
+  }
+}

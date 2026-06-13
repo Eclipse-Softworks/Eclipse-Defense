@@ -1,0 +1,7 @@
+# Eclipse Defense - Security Scanner Dependencies
+
+# HTTP/HTTPS request library
+requests>=2.31.0
+
+# Advanced HTTP utilities
+urllib3>=2.0.0

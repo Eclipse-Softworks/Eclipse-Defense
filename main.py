@@ -1,6 +1,7 @@
 import argparse
 import sys
 import time
+import datetime
 import urllib3
 import requests
 
@@ -92,7 +93,8 @@ def print_summary(all_results):
             print(f"  {c}[{sev}]{Color.RESET} {vtype} ({Color.GRAY}param: {param}{Color.RESET})")
     else:
         print(f"\n  {Color.GREEN}{Color.BOLD}No vulnerabilities detected in this scan.{Color.RESET}")
-    print(f"\n  {Color.GRAY}Scan completed at: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}{Color.RESET}")
+    local_ts = datetime.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z%z')
+    print(f"\n  {Color.GRAY}Scan completed at: {local_ts}{Color.RESET}")
 
 
 def run_module(name, label, func, url, session):

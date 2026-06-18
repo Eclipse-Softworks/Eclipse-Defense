@@ -5,3 +5,6 @@ requests>=2.31.0
 
 # Advanced HTTP utilities
 urllib3>=2.0.0
+
+# Flask web framework (for PoC vulnerable app testing)
+Flask>=2.3.0

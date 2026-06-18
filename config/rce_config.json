@@ -27,7 +27,7 @@
     {
       "name": "Windows command injection (ampersand)",
       "payload": "&whoami",
-      "pattern": "(administrator|nt authority|system|root)",
+      "pattern": "\\bnt authority\\\\(system|local service|network service)\\b|\\b[a-z0-9_.$-]{2,32}\\\\(administrator|[a-z0-9_.$-]{2,32})\\b",
       "severity": "CRITICAL"
     },
     {
@@ -61,10 +61,12 @@
       "severity": "HIGH"
     },
     {
-      "name": "Log4Shell JNDI probe (header-based)",
+      "name": "Log4Shell JNDI probe (in-band, low confidence)",
       "payload": "${jndi:ldap://127.0.0.1/a}",
-      "pattern": "uid=|root|administrator",
-      "severity": "CRITICAL"
+      "pattern": "uid=\\d+.*gid=\\d+",
+      "severity": "INFO",
+      "requires_oob_confirmation": true,
+      "note": "Log4Shell is a blind/asynchronous vulnerability: the JNDI lookup happens when a logger processes the string, not synchronously in the HTTP response body. A body-content match here CANNOT confirm exploitation. Treat any hit as a lead only, and confirm with an out-of-band collaborator (DNS/LDAP listener you control) before reporting CRITICAL."
     },
     {
       "name": "XInclude / XXE probe",

@@ -121,9 +121,9 @@ def _check_upload_endpoints(base_url, session, scan_results):
                     body = resp.text.lower()
                     if any(kw in body for kw in ["success", "upload", "saved", "created", filename.lower()]):
                         found(f"File upload bypass succeeded!")
-                        found(f"    Endpoint: {url}")
-                        found(f"    Filename: {filename}")
-                        found(f"    MIME:     {mime}")
+                        found(f"Endpoint: {url}")
+                        found(f"Filename: {filename}")
+                        found(f"MIME:     {mime}")
                         result("CRITICAL", f"Upload bypass with filename '{filename}' at {url}")
                         scan_results["upload_bypass"] = True
                         scan_results["vulnerabilities"].append({

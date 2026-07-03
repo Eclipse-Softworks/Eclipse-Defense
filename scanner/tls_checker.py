@@ -12,12 +12,18 @@ def check_tls(target_url):
     parsed = urlparse(target_url)
     hostname = parsed.hostname
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    scan_results = {"vulnerabilities": []}
 
     if parsed.scheme != "https":
         result("HIGH", f"Target is not using HTTPS: {parsed.scheme}://")
-        return {}
-
-    scan_results = {}
+        _add_vulnerability(
+            scan_results,
+            "TLS Not Enabled",
+            "scheme",
+            parsed.scheme or "unknown",
+            "HIGH",
+        )
+        return scan_results
 
     try:
         ctx = ssl.create_default_context()
@@ -41,6 +47,13 @@ def check_tls(target_url):
         found(f"Certificate verification FAILED: {e}")
         result("CRITICAL", "Certificate is invalid or self-signed")
         scan_results["cert_valid"] = False
+        _add_vulnerability(
+            scan_results,
+            "Invalid TLS Certificate",
+            hostname,
+            str(e),
+            "CRITICAL",
+        )
 
     except ssl.SSLError as e:
         found(f"SSL Error: {e}")
@@ -53,6 +66,15 @@ def check_tls(target_url):
     _check_weak_protocol_support(hostname, port, scan_results)
 
     return scan_results
+
+
+def _add_vulnerability(scan_results, vuln_type, param, payload, severity):
+    scan_results.setdefault("vulnerabilities", []).append({
+        "type": vuln_type,
+        "param": param,
+        "payload": payload,
+        "severity": severity,
+    })
 
 
 def _check_protocol_version(protocol, scan_results):
@@ -68,10 +90,24 @@ def _check_protocol_version(protocol, scan_results):
         found(f"Deprecated protocol detected: {protocol}")
         result("HIGH", f"Deprecated TLS version: {protocol} - upgrade to TLS 1.3")
         scan_results["protocol_safe"] = False
+        _add_vulnerability(
+            scan_results,
+            "Deprecated TLS Protocol",
+            "protocol",
+            protocol,
+            "HIGH",
+        )
     else:
         found(f"Unknown or very old protocol: {protocol}")
         result("CRITICAL", f"Obsolete protocol: {protocol}")
         scan_results["protocol_safe"] = False
+        _add_vulnerability(
+            scan_results,
+            "Obsolete TLS Protocol",
+            "protocol",
+            protocol,
+            "CRITICAL",
+        )
 
 
 def _check_cipher_strength(cipher_name, cipher_bits, scan_results):
@@ -86,10 +122,24 @@ def _check_cipher_strength(cipher_name, cipher_bits, scan_results):
         found(f"Weak cipher detected: {cipher_name}")
         result("HIGH", f"Weak cipher in use: {', '.join(weak_found)}")
         scan_results["cipher_safe"] = False
+        _add_vulnerability(
+            scan_results,
+            "Weak TLS Cipher",
+            "cipher",
+            cipher_name,
+            "HIGH",
+        )
     elif cipher_bits and cipher_bits < 128:
         found(f"Insufficient key length: {cipher_bits} bits")
         result("HIGH", f"Key length below 128 bits: {cipher_bits}")
         scan_results["cipher_safe"] = False
+        _add_vulnerability(
+            scan_results,
+            "Weak TLS Key Length",
+            "cipher_bits",
+            str(cipher_bits),
+            "HIGH",
+        )
     else:
         ok(f"Cipher strength acceptable: {cipher_bits} bits")
         result("PASS", "Cipher suite is strong")
@@ -100,6 +150,13 @@ def _check_certificate(cert, hostname, scan_results):
     if not cert:
         found("No certificate data retrieved")
         result("CRITICAL", "Certificate missing")
+        _add_vulnerability(
+            scan_results,
+            "Missing TLS Certificate",
+            hostname,
+            "No certificate data retrieved",
+            "CRITICAL",
+        )
         return
 
     not_after_str = cert.get("notAfter", "")
@@ -121,13 +178,34 @@ def _check_certificate(cert, hostname, scan_results):
             found(f"Certificate EXPIRED {abs(days_left)} days ago")
             result("CRITICAL", "Certificate has expired")
             scan_results["cert_expired"] = True
+            _add_vulnerability(
+                scan_results,
+                "Expired TLS Certificate",
+                hostname,
+                not_after_str,
+                "CRITICAL",
+            )
         elif days_left < 14:
             found(f"Certificate expiring very soon: {days_left} days remaining")
             result("HIGH", f"Certificate expiring in {days_left} days")
             scan_results["cert_expiring_soon"] = True
+            _add_vulnerability(
+                scan_results,
+                "TLS Certificate Expiring Soon",
+                hostname,
+                f"{days_left} days remaining",
+                "HIGH",
+            )
         elif days_left < 30:
             result("MEDIUM", f"Certificate expiring in {days_left} days")
             scan_results["cert_expiring_soon"] = True
+            _add_vulnerability(
+                scan_results,
+                "TLS Certificate Expiring Soon",
+                hostname,
+                f"{days_left} days remaining",
+                "MEDIUM",
+            )
         else:
             ok(f"Certificate valid for {days_left} more days")
             result("PASS", "Certificate expiry is acceptable")
@@ -143,6 +221,13 @@ def _check_certificate(cert, hostname, scan_results):
     if not san_hosts:
         result("MEDIUM", "No SAN entries found in certificate")
         scan_results["has_san"] = False
+        _add_vulnerability(
+            scan_results,
+            "Missing Certificate SAN",
+            hostname,
+            "No subjectAltName entries",
+            "MEDIUM",
+        )
     else:
         match = any(
             h == hostname or (h.startswith("*.") and hostname.endswith(h[1:]))
@@ -156,6 +241,13 @@ def _check_certificate(cert, hostname, scan_results):
             found(f"Hostname {hostname} NOT found in SANs: {san_hosts}")
             result("HIGH", "Hostname mismatch with certificate SAN")
             scan_results["has_san"] = False
+            _add_vulnerability(
+                scan_results,
+                "Certificate Hostname Mismatch",
+                hostname,
+                ", ".join(san_hosts),
+                "HIGH",
+            )
 
 
 def _check_weak_protocol_support(hostname, port, scan_results):
@@ -178,6 +270,13 @@ def _check_weak_protocol_support(hostname, port, scan_results):
                     found(f"Server accepts {label} (deprecated)")
                     result("HIGH", f"Weak protocol {label} is accepted by server")
                     scan_results[f"accepts_{label.replace(' ', '_').lower()}"] = True
+                    _add_vulnerability(
+                        scan_results,
+                        "Weak TLS Protocol Supported",
+                        "protocol",
+                        label,
+                        "HIGH",
+                    )
         except Exception:
             ok(f"Server rejects {label}")
             result("PASS", f"Server correctly rejects {label}")

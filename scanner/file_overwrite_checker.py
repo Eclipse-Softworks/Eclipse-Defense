@@ -1,6 +1,7 @@
 import requests
 import urllib.parse
 import os
+import json
 from utils.colors import section, result, info, found, ok, Color
 from utils.config_loader import load_file_config
 
@@ -93,12 +94,18 @@ def _check_upload_endpoints(base_url, session, scan_results):
     info(f"Probing {len(upload_endpoints)} potential upload endpoints")
 
     found_endpoints = []
+    control_sig = _get_control_signature(
+        base_url + "/eclipse_baseline_nonexistent_upload_12345.xyz",
+        session,
+        timeout=5,
+        allow_redirects=False,
+    )
 
     for endpoint in upload_endpoints:
         url = base_url + endpoint
         try:
             resp = session.get(url, timeout=5, verify=False, allow_redirects=False)
-            if resp.status_code not in (404, 410):
+            if resp.status_code not in (404, 410) and _differs_from_control(resp, control_sig):
                 found_endpoints.append((url, resp.status_code))
                 info(f"Upload endpoint exists: {Color.YELLOW}{url}{Color.RESET} [{resp.status_code}]")
         except requests.RequestException:
@@ -118,8 +125,7 @@ def _check_upload_endpoints(base_url, session, scan_results):
                 resp = session.post(url, files=files, timeout=8, verify=False)
 
                 if resp.status_code in (200, 201, 202):
-                    body = resp.text.lower()
-                    if any(kw in body for kw in ["success", "upload", "saved", "created", filename.lower()]):
+                    if _upload_bypass_confirmed(resp, session, url, filename, content):
                         found(f"File upload bypass succeeded!")
                         found(f"Endpoint: {url}")
                         found(f"Filename: {filename}")
@@ -148,16 +154,21 @@ def _check_backup_files(base_url, session, scan_results):
         "/phpinfo.php", "/info.php", "/test.php",
         "/.DS_Store", "/thumbs.db",
         "/server-status", "/server-info",
-        "/robots.txt", "/sitemap.xml",
     ]
 
     info(f"Checking {len(backup_patterns)} sensitive file paths")
+    control_sig = _get_control_signature(
+        base_url + "/eclipse_baseline_nonexistent_12345.xyz",
+        session,
+        timeout=5,
+        allow_redirects=False,
+    )
 
     for path in backup_patterns:
         url = base_url + path
         try:
             resp = session.get(url, timeout=5, verify=False, allow_redirects=False)
-            if resp.status_code == 200 and len(resp.text) > 10:
+            if resp.status_code == 200 and len(resp.text) > 10 and _differs_from_control(resp, control_sig):
                 severity = "CRITICAL" if any(x in path for x in [".env", ".git", "phpinfo", "config", ".sql"]) else "MEDIUM"
                 found(f"Sensitive file exposed: {path}")
                 result(severity, f"Publicly accessible: {url}")
@@ -169,3 +180,90 @@ def _check_backup_files(base_url, session, scan_results):
                 })
         except requests.RequestException:
             pass
+
+
+def _get_control_signature(url, session, timeout=5, allow_redirects=False):
+    try:
+        resp = session.get(url, timeout=timeout, verify=False, allow_redirects=allow_redirects)
+        return (resp.status_code, len(resp.text))
+    except requests.RequestException:
+        return None
+
+
+def _differs_from_control(resp, control_sig):
+    if control_sig is None:
+        return True
+
+    control_status, control_len = control_sig
+    body_len = len(resp.text)
+
+    if resp.status_code != control_status:
+        return True
+
+    return abs(body_len - control_len) > max(50, int(control_len * 0.10))
+
+
+def _upload_bypass_confirmed(resp, session, upload_url, filename, content):
+    if _json_upload_response_matches(resp, filename):
+        return True
+
+    for candidate_url in _upload_file_candidates(resp, upload_url, filename):
+        try:
+            check = session.get(candidate_url, timeout=8, verify=False, allow_redirects=True)
+            if check.status_code == 200 and content in check.content:
+                return True
+        except requests.RequestException:
+            pass
+
+    return False
+
+
+def _json_upload_response_matches(resp, filename):
+    try:
+        data = resp.json()
+    except (ValueError, json.JSONDecodeError):
+        return False
+
+    for key, value in _walk_json(data):
+        if key.lower() in {"path", "url", "filename", "file", "filepath"}:
+            if isinstance(value, str) and os.path.basename(value) == filename:
+                return True
+
+    return False
+
+
+def _upload_file_candidates(resp, upload_url, filename):
+    candidates = []
+
+    location = resp.headers.get("Location")
+    if location and filename in location:
+        candidates.append(urllib.parse.urljoin(upload_url, location))
+
+    try:
+        data = resp.json()
+    except (ValueError, json.JSONDecodeError):
+        data = None
+
+    if data is not None:
+        for key, value in _walk_json(data):
+            if key.lower() in {"path", "url", "filename", "file", "filepath"}:
+                if isinstance(value, str) and os.path.basename(value) == filename:
+                    candidates.append(urllib.parse.urljoin(upload_url, value))
+
+    candidates.extend([
+        urllib.parse.urljoin(upload_url.rstrip("/") + "/", filename),
+        urllib.parse.urljoin(upload_url.rsplit("/", 1)[0] + "/", filename),
+        urllib.parse.urljoin(upload_url, "/uploads/" + filename),
+    ])
+
+    return list(dict.fromkeys(candidates))
+
+
+def _walk_json(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key), item
+            yield from _walk_json(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _walk_json(item)

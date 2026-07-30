@@ -1,9 +1,11 @@
 import requests
+from urllib.parse import urlparse
 from utils.colors import section, result, info, found, ok, Color
 from utils.config_loader import load_server_config
 
 
-def check_server_info(target_url, session=None):
+def check_server_info(target_url, session=None, timeout=10):
+    """Inspect a target response for server metadata and defensive HTTP headers."""
     section("WEB SERVER FINGERPRINTING & HEADERS")
 
     s = session or requests.Session()
@@ -12,7 +14,7 @@ def check_server_info(target_url, session=None):
     scan_results = {}
 
     try:
-        resp = s.get(target_url, timeout=10, verify=False, allow_redirects=True)
+        resp = s.get(target_url, timeout=timeout, verify=False, allow_redirects=True)
     except requests.RequestException as e:
         found(f"Request failed: {e}")
         return scan_results
@@ -23,7 +25,7 @@ def check_server_info(target_url, session=None):
     info(f"HTTP Status: {Color.CYAN}{resp.status_code}{Color.RESET}")
 
     _detect_server(headers, scan_results)
-    _check_security_headers(headers, scan_results)
+    _check_security_headers(headers, scan_results, urlparse(resp.url).scheme == "https")
     _check_information_disclosure(headers, scan_results)
     _check_cookie_flags(resp.cookies, scan_results)
 
@@ -59,11 +61,15 @@ def _detect_server(headers, scan_results):
         found(f"Server version disclosed in header: {raw_server}")
         result("MEDIUM", "Server version number is exposed - remove or genericize Server header")
         scan_results["version_disclosed"] = True
+        scan_results.setdefault("vulnerabilities", []).append({
+            "type": "Server Version Disclosure", "param": "Server",
+            "payload": raw_server, "severity": "MEDIUM",
+        })
     else:
         scan_results["version_disclosed"] = False
 
 
-def _check_security_headers(headers, scan_results):
+def _check_security_headers(headers, scan_results, is_https=True):
     config = load_server_config()
     security_headers = config["security_headers"]
     
@@ -74,6 +80,11 @@ def _check_security_headers(headers, scan_results):
         header_key = header_obj["header"]
         label = header_obj["label"]
         severity = header_obj["severity"]
+
+        # HSTS is meaningful only when the final response was delivered over
+        # HTTPS; HTTP-only endpoints are already reported by the TLS module.
+        if header_key == "strict-transport-security" and not is_https:
+            continue
         
         if header_key in headers:
             ok(f"{label}: {Color.GRAY}{headers[header_key][:80]}{Color.RESET}")
@@ -82,6 +93,10 @@ def _check_security_headers(headers, scan_results):
             found(f"Missing security header: {label}")
             result(severity, f"Header not set: {label}")
             missing.append((label, severity))
+            scan_results.setdefault("vulnerabilities", []).append({
+                "type": "Missing Security Header", "param": header_key,
+                "payload": label, "severity": severity,
+            })
 
     scan_results["missing_security_headers"] = missing
     scan_results["present_security_headers"] = present
@@ -101,11 +116,16 @@ def _check_information_disclosure(headers, scan_results):
                 found(f"Technology disclosure - {h}: {val}")
                 result("LOW", f"Header leaks tech info: {h}: {val}")
                 disclosed.append(h)
+                scan_results.setdefault("vulnerabilities", []).append({
+                    "type": "Technology Disclosure", "param": h,
+                    "payload": val, "severity": "LOW",
+                })
 
     scan_results["disclosed_headers"] = disclosed
 
 
 def _check_cookie_flags(cookies, scan_results):
+    """Record cookies whose transport, script-access, or SameSite controls are absent."""
     issues = []
 
     for cookie in cookies:
@@ -124,6 +144,10 @@ def _check_cookie_flags(cookies, scan_results):
             found(f"Cookie '{cookie.name}': {', '.join(flags)}")
             result("MEDIUM", f"Insecure cookie: {cookie.name} - {', '.join(flags)}")
             issues.append({"name": cookie.name, "issues": flags})
+            scan_results.setdefault("vulnerabilities", []).append({
+                "type": "Insecure Cookie", "param": cookie.name,
+                "payload": ", ".join(flags), "severity": "MEDIUM",
+            })
         else:
             ok(f"Cookie '{cookie.name}' has secure flags set")
 

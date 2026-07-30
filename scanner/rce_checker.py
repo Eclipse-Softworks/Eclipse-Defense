@@ -5,7 +5,8 @@ from utils.colors import section, result, info, found, ok, Color
 from utils.config_loader import load_rce_config
 
 
-def check_rce(target_url, session=None):
+def check_rce(target_url, session=None, timeout=10):
+    """Probe configured parameters for RCE/SSTI evidence using per-parameter baselines."""
     section("REMOTE CODE EXECUTION (RCE) DETECTION")
     
     config = load_rce_config()
@@ -47,7 +48,7 @@ def check_rce(target_url, session=None):
                                 for p, v in (params.items() if params else {p: "" for p in param_names}.items())}
             baseline_params[param] = "eclipse_baseline_probe_12345"
             try:
-                resp = s.get(base_url, params=baseline_params, timeout=8, verify=False, allow_redirects=True)
+                resp = s.get(base_url, params=baseline_params, timeout=timeout, verify=False, allow_redirects=True)
                 baseline_bodies[param] = resp.text
             except requests.RequestException:
                 baseline_bodies[param] = ""
@@ -61,7 +62,7 @@ def check_rce(target_url, session=None):
             test_params[param] = probe["payload"]
 
             try:
-                resp = s.get(base_url, params=test_params, timeout=8, verify=False, allow_redirects=True)
+                resp = s.get(base_url, params=test_params, timeout=timeout, verify=False, allow_redirects=True)
                 body = resp.text
 
                 match = re.search(probe["pattern"], body, re.IGNORECASE)
@@ -117,7 +118,7 @@ def check_rce(target_url, session=None):
             except requests.RequestException:
                 pass
 
-    _check_log4shell_headers(target_url, s, scan_results)
+    _check_log4shell_headers(target_url, s, scan_results, timeout)
 
     if not rce_found_any and not ssti_found_any:
         ok("No obvious RCE or SSTI indicators found in GET parameters")
@@ -132,7 +133,12 @@ def check_rce(target_url, session=None):
     return scan_results
 
 
-def _check_log4shell_headers(target_url, session, scan_results):
+def _check_log4shell_headers(target_url, session, scan_results, timeout):
+    """Test Log4Shell-shaped headers while retaining only unconfirmed response leads.
+
+    A response can never prove a JNDI callback occurred; confirmation requires an
+    out-of-band DNS or LDAP listener.
+    """
     info("Testing Log4Shell via request headers")
 
     headers_to_test = {
@@ -146,7 +152,7 @@ def _check_log4shell_headers(target_url, session, scan_results):
     # Baseline with the header omitted/normal, so we only flag a header if the
     # payload-bearing request differs from a clean request to the same URL.
     try:
-        baseline_resp = session.get(target_url, timeout=8, verify=False, allow_redirects=True)
+        baseline_resp = session.get(target_url, timeout=timeout, verify=False, allow_redirects=True)
         baseline_body = baseline_resp.text
     except requests.RequestException:
         baseline_body = ""
@@ -159,7 +165,7 @@ def _check_log4shell_headers(target_url, session, scan_results):
     for header, payload in headers_to_test.items():
         try:
             resp = session.get(target_url, headers={header: payload},
-                               timeout=8, verify=False, allow_redirects=True)
+                               timeout=timeout, verify=False, allow_redirects=True)
             body = resp.text
 
             matched = re.search(pattern, body, re.IGNORECASE)

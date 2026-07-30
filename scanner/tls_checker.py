@@ -6,7 +6,8 @@ from utils.colors import section, result, info, found, ok, Color
 from utils.config_loader import load_tls_config
 
 
-def check_tls(target_url):
+def check_tls(target_url, timeout=10):
+    """Inspect the negotiated TLS connection, certificate, and legacy protocol support."""
     section("TLS / SSL SECURITY ASSESSMENT")
 
     parsed = urlparse(target_url)
@@ -27,7 +28,7 @@ def check_tls(target_url):
 
     try:
         ctx = ssl.create_default_context()
-        with socket.create_connection((hostname, port), timeout=10) as sock:
+        with socket.create_connection((hostname, port), timeout=timeout) as sock:
             with ctx.wrap_socket(sock, server_hostname=hostname) as tls_sock:
                 cert = tls_sock.getpeercert()
                 protocol = tls_sock.version()
@@ -63,7 +64,7 @@ def check_tls(target_url):
         found(f"Connection failed: {e}")
         scan_results["connection_error"] = str(e)
 
-    _check_weak_protocol_support(hostname, port, scan_results)
+    _check_weak_protocol_support(hostname, port, scan_results, timeout)
 
     return scan_results
 
@@ -147,6 +148,7 @@ def _check_cipher_strength(cipher_name, cipher_bits, scan_results):
 
 
 def _check_certificate(cert, hostname, scan_results):
+    """Validate certificate lifetime and SAN coverage, recording actionable findings."""
     if not cert:
         found("No certificate data retrieved")
         result("CRITICAL", "Certificate missing")
@@ -229,10 +231,7 @@ def _check_certificate(cert, hostname, scan_results):
             "MEDIUM",
         )
     else:
-        match = any(
-            h == hostname or (h.startswith("*.") and hostname.endswith(h[1:]))
-            for h in san_hosts
-        )
+        match = any(_hostname_matches_san(hostname, san) for san in san_hosts)
         if match:
             ok(f"Hostname matches certificate SAN")
             result("PASS", "Hostname validated against SAN")
@@ -250,7 +249,19 @@ def _check_certificate(cert, hostname, scan_results):
             )
 
 
-def _check_weak_protocol_support(hostname, port, scan_results):
+def _hostname_matches_san(hostname, san):
+    """Apply TLS wildcard rules: ``*.example.com`` spans exactly one label."""
+    hostname = hostname.lower().rstrip(".")
+    san = san.lower().rstrip(".")
+    if not san.startswith("*."):
+        return hostname == san
+
+    suffix = san[1:]
+    return hostname.endswith(suffix) and hostname.count(".") == suffix.count(".")
+
+
+def _check_weak_protocol_support(hostname, port, scan_results, timeout=10):
+    """Attempt legacy TLS versions to determine whether the server still accepts them."""
     weak_versions = {
         "TLS 1.0": ssl.TLSVersion.TLSv1   if hasattr(ssl.TLSVersion, "TLSv1")   else None,
         "TLS 1.1": ssl.TLSVersion.TLSv1_1 if hasattr(ssl.TLSVersion, "TLSv1_1") else None,
@@ -265,7 +276,7 @@ def _check_weak_protocol_support(hostname, port, scan_results):
             ctx.verify_mode    = ssl.CERT_NONE
             ctx.minimum_version = version
             ctx.maximum_version = version
-            with socket.create_connection((hostname, port), timeout=5) as sock:
+            with socket.create_connection((hostname, port), timeout=timeout) as sock:
                 with ctx.wrap_socket(sock, server_hostname=hostname):
                     found(f"Server accepts {label} (deprecated)")
                     result("HIGH", f"Weak protocol {label} is accepted by server")
@@ -277,7 +288,9 @@ def _check_weak_protocol_support(hostname, port, scan_results):
                         label,
                         "HIGH",
                     )
-        except Exception:
+        except ssl.SSLError:
             ok(f"Server rejects {label}")
             result("PASS", f"Server correctly rejects {label}")
             scan_results[f"accepts_{label.replace(' ', '_').lower()}"] = False
+        except (socket.timeout, ConnectionRefusedError, OSError) as exc:
+            info(f"Could not determine {label} support: {exc}")

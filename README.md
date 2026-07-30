@@ -15,6 +15,7 @@ Eclipse-Defense/
 │   ├── filter_config.json           # XSS/SQLi detection payloads
 │   ├── rce_config.json              # RCE/SSTI detection payloads
 │   ├── file_config.json             # File traversal payloads
+│   ├── rate_limit_config.json       # Bounded rate-limit probe settings
 │   └── tls_config.json              # TLS/cipher rules
 ├── scanner/                         # Security assessment modules
 │   ├── __init__.py
@@ -22,6 +23,8 @@ Eclipse-Defense/
 │   ├── filter_bypass_checker.py     # XSS, SQLi, HTTP verb tampering
 │   ├── rce_checker.py               # Remote code execution detection
 │   ├── file_overwrite_checker.py    # Path traversal & file upload bypass
+│   ├── rate_limit/                  # Rate-limit assessment package
+│   │   └── checker.py               # Bounded benign-request probe
 │   └── tls_checker.py               # TLS/SSL assessment
 └── utils/                           # Utility modules
     ├── __init__.py
@@ -42,24 +45,25 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-# Full scan (positional URL argument)
-python main.py https://target.com
+# Full active scan (only after confirming that you are authorized to test the target)
+python main.py https://target.com --authorized
 
 # Full scan (flag-based URL)
-python main.py -u https://target.com
+python main.py -u https://target.com --authorized
 
 # Specific modules (positional URL)
 python main.py https://target.com -m tls server
-python main.py https://target.com/search?q=test -m rce filter file
+python main.py https://target.com/search?q=test -m rce filter file --authorized
+python main.py https://target.com/api -m rate --authorized
 
 # With custom timeout
-python main.py https://target.com --timeout 15
+python main.py https://target.com --timeout 15 --authorized
 
 # All modules explicitly
-python main.py https://target.com --all
+python main.py https://target.com --all --authorized
 
 # All modules explicitly
-python main.py -u https://target.com --all
+python main.py -u https://target.com --all --authorized
 ```
 
 ## Modules
@@ -71,3 +75,8 @@ python main.py -u https://target.com --all
 | `rce`    | RCE, SSTI, Log4Shell detection               |
 | `file`   | Path traversal, file upload bypass, backups  |
 | `filter` | XSS, SQLi, HTTP verb tampering, header inject|
+| `rate`   | Bounded rate-limit header and enforcement check|
+
+`rce`, `file`, `filter`, and `rate` send active requests. The rate-limit module
+sends at most 20 benign, sequential requests and requires `--authorized`; a
+missing signal is inconclusive and is never reported as a vulnerability.

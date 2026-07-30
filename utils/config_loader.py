@@ -17,6 +17,11 @@ class ConfigLoader:
     
     @classmethod
     def load_config(cls, config_name):
+        """Load and cache a named JSON configuration file from ``config/``.
+
+        Invalid or missing configuration is deliberately surfaced to callers so a
+        scan does not continue with an incomplete set of detection rules.
+        """
         if config_name in cls._cache:
             return cls._cache[config_name]
         
@@ -35,6 +40,7 @@ class ConfigLoader:
     
     @classmethod
     def get_value(cls, config_name, *keys):
+        """Return a nested configuration value, or ``None`` when its path is absent."""
         config_data = cls.load_config(config_name)
         
         current = config_data
@@ -48,6 +54,7 @@ class ConfigLoader:
     
     @classmethod
     def clear_cache(cls):
+        """Discard cached configurations, primarily for tests or config reloads."""
         cls._cache.clear()
 
 
@@ -70,3 +77,7 @@ def load_file_config():
 
 def load_tls_config():
     return ConfigLoader.load_config("tls_config")
+
+
+def load_rate_limit_config():
+    return ConfigLoader.load_config("rate_limit_config")

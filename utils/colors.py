@@ -12,6 +12,13 @@ class Color:
     BG_RED  = "\033[41m"
     BG_GREEN= "\033[42m"
 
+    @classmethod
+    def disable(cls):
+        """Replace ANSI escape codes with empty strings for plain-text output."""
+        for name, value in vars(cls).items():
+            if name.isupper() and isinstance(value, str):
+                setattr(cls, name, "")
+
 def banner():
     b = (
         f"\n{Color.CYAN}{Color.BOLD}\n"

@@ -3,6 +3,7 @@ import sys
 import time
 import urllib3
 import requests
+from urllib.parse import urlparse
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -13,6 +14,7 @@ from scanner import (
     check_rce,
     check_file_overwrite,
     check_filter_bypass,
+    check_rate_limit,
 )
 
 MODULES = {
@@ -21,10 +23,13 @@ MODULES = {
     "rce":    ("Remote Code Execution",      check_rce),
     "file":   ("File Overwrite/Traversal",   check_file_overwrite),
     "filter": ("Client Filter Bypass",       check_filter_bypass),
+    "rate":   ("Rate Limiting",               check_rate_limit),
 }
+ACTIVE_MODULES = {"rce", "file", "filter", "rate"}
 
 
 def parse_args():
+    """Parse and normalize CLI options, accepting either supported URL form."""
     parser = argparse.ArgumentParser(
         prog="security_scanner",
         description="Eclipse Softworks Cyber Defense Scanner",
@@ -41,20 +46,38 @@ def parse_args():
                         help="Request timeout in seconds (default: 10)")
     parser.add_argument("--no-color",      action="store_true",
                         help="Disable colored output")
+    parser.add_argument("--authorized",    action="store_true",
+                        help="Confirm you are authorized to run active probes")
     
     args = parser.parse_args()
     
     # Support both positional and flag-based URL specification
+    if args.url and args.url_flag:
+        parser.error("specify the target URL once, either positionally or with -u/--url-flag")
+
     if args.url_flag:
         args.url = args.url_flag
     
     if not args.url:
         parser.error("the following arguments are required: URL")
+
+    if args.timeout <= 0:
+        parser.error("--timeout must be greater than zero")
+
+    parsed_url = urlparse(args.url)
+    if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
+        parser.error("URL must include an http:// or https:// scheme and hostname")
+
+    try:
+        parsed_url.port
+    except ValueError:
+        parser.error("URL contains an invalid port")
     
     return args
 
 
 def print_summary(all_results):
+    """Aggregate normalized vulnerability records and render the terminal summary."""
     section("SCAN SUMMARY")
 
     total_vulns = []
@@ -95,10 +118,11 @@ def print_summary(all_results):
     print(f"\n  {Color.GRAY}Scan completed at: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}{Color.RESET}")
 
 
-def run_module(name, label, func, url, session):
+def run_module(name, label, func, url, session, timeout):
+    """Run one scanner module and convert an unexpected failure into a result."""
     try:
         start = time.time()
-        res   = func(url, session) if name != "tls" else func(url)
+        res = func(url, timeout=timeout) if name == "tls" else func(url, session, timeout=timeout)
         elapsed = time.time() - start
         info(f"Module '{label}' completed in {elapsed:.2f}s")
         return res
@@ -108,16 +132,21 @@ def run_module(name, label, func, url, session):
 
 
 def main():
+    """Validate the target, create the shared HTTP session, and run selected modules."""
     args = parse_args()
+
+    if args.no_color:
+        Color.disable()
 
     banner()
 
     url = args.url.rstrip("/")
-    if not url.startswith(("http://", "https://")):
-        print(f"{Color.RED}[!] URL must start with http:// or https://{Color.RESET}")
-        sys.exit(1)
-
     selected = args.modules if args.modules else list(MODULES.keys())
+
+    if ACTIVE_MODULES.intersection(selected) and not args.authorized:
+        print(f"{Color.RED}[!] Active modules send requests beyond passive inspection. "
+              f"Re-run with --authorized after confirming scope.{Color.RESET}")
+        sys.exit(2)
 
     print(f"  {Color.BOLD}Target  : {Color.CYAN}{url}{Color.RESET}")
     print(f"  {Color.BOLD}Modules : {Color.CYAN}{', '.join(selected)}{Color.RESET}")
@@ -135,10 +164,7 @@ def main():
 
     for mod_key in selected:
         label, func = MODULES[mod_key]
-        if mod_key == "tls":
-            res = run_module(mod_key, label, func, url, session)
-        else:
-            res = run_module(mod_key, label, func, url, session)
+        res = run_module(mod_key, label, func, url, session, args.timeout)
         all_results[mod_key] = res
 
     print_summary(all_results)

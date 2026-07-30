@@ -6,7 +6,8 @@ from utils.colors import section, result, info, found, ok, Color
 from utils.config_loader import load_file_config
 
 
-def check_file_overwrite(target_url, session=None):
+def check_file_overwrite(target_url, session=None, timeout=10):
+    """Probe for traversal, upload-validation, and publicly exposed sensitive files."""
     section("FILE OVERWRITE & PATH TRAVERSAL DETECTION")
 
     s = session or requests.Session()
@@ -19,21 +20,27 @@ def check_file_overwrite(target_url, session=None):
     scan_results = {
         "traversal_found":   False,
         "upload_bypass":     False,
+        "sensitive_file_found": False,
         "vulnerabilities":   [],
     }
 
-    _check_path_traversal(target_url, parsed, params, s, scan_results)
-    _check_upload_endpoints(base_url, s, scan_results)
-    _check_backup_files(base_url, s, scan_results)
+    _check_path_traversal(target_url, parsed, params, s, scan_results, timeout)
+    _check_upload_endpoints(base_url, s, scan_results, timeout)
+    _check_backup_files(base_url, s, scan_results, timeout)
 
-    if not scan_results["traversal_found"] and not scan_results["upload_bypass"]:
+    if not any((
+        scan_results["traversal_found"],
+        scan_results["upload_bypass"],
+        scan_results["sensitive_file_found"],
+    )):
         ok("No file overwrite or path traversal vulnerabilities detected")
         result("PASS", "File access controls appear to be in place")
 
     return scan_results
 
 
-def _check_path_traversal(target_url, parsed, params, session, scan_results):
+def _check_path_traversal(target_url, parsed, params, session, scan_results, timeout):
+    """Send traversal payloads through likely file parameters and detect file content."""
     config = load_file_config()
     file_param_names = config["file_param_names"]
     file_traversal_payloads = config["file_traversal_payloads"]
@@ -44,17 +51,30 @@ def _check_path_traversal(target_url, parsed, params, session, scan_results):
     info(f"Testing path traversal on parameters: {Color.CYAN}{', '.join(param_names)}{Color.RESET}")
 
     for param in param_names:
+        baseline_params = {p: (v[0] if isinstance(v, list) else v)
+                           for p, v in (params.items() if params else {p: "" for p in param_names}.items())}
+        baseline_params[param] = "eclipse_baseline_probe_12345"
+        try:
+            baseline_body = session.get(
+                base_url, params=baseline_params, timeout=timeout,
+                verify=False, allow_redirects=True,
+            ).text
+        except requests.RequestException:
+            info(f"Skip checks for '{param}':request failed")
+            continue
+
         for payload in file_traversal_payloads:
             test_params = {p: (v[0] if isinstance(v, list) else v)
                            for p, v in (params.items() if params else {p: "" for p in param_names}.items())}
             test_params[param] = payload
 
             try:
-                resp = session.get(base_url, params=test_params, timeout=8,
+                resp = session.get(base_url, params=test_params, timeout=timeout,
                                    verify=False, allow_redirects=True)
                 body = resp.text
 
-                if _detect_file_content(body, payload):
+                if (_detect_file_content(body, payload)
+                        and not _detect_file_content(baseline_body, payload)):
                     found(f"Path traversal confirmed!")
                     found(f"    Parameter: {param}")
                     found(f"    Payload:   {payload}")
@@ -86,7 +106,7 @@ def _detect_file_content(body, payload):
     return False
 
 
-def _check_upload_endpoints(base_url, session, scan_results):
+def _check_upload_endpoints(base_url, session, scan_results, timeout):
     config = load_file_config()
     upload_endpoints = config["upload_endpoints"]
     file_upload_bypass_payloads = config["file_upload_bypass_payloads"]
@@ -97,14 +117,14 @@ def _check_upload_endpoints(base_url, session, scan_results):
     control_sig = _get_control_signature(
         base_url + "/eclipse_baseline_nonexistent_upload_12345.xyz",
         session,
-        timeout=5,
+        timeout=timeout,
         allow_redirects=False,
     )
 
     for endpoint in upload_endpoints:
         url = base_url + endpoint
         try:
-            resp = session.get(url, timeout=5, verify=False, allow_redirects=False)
+            resp = session.get(url, timeout=timeout, verify=False, allow_redirects=False)
             if resp.status_code not in (404, 410) and _differs_from_control(resp, control_sig):
                 found_endpoints.append((url, resp.status_code))
                 info(f"Upload endpoint exists: {Color.YELLOW}{url}{Color.RESET} [{resp.status_code}]")
@@ -122,10 +142,10 @@ def _check_upload_endpoints(base_url, session, scan_results):
             mime = payload_obj["mime_type"]
             files = {"file": (filename, content, mime)}
             try:
-                resp = session.post(url, files=files, timeout=8, verify=False)
+                resp = session.post(url, files=files, timeout=timeout, verify=False)
 
                 if resp.status_code in (200, 201, 202):
-                    if _upload_bypass_confirmed(resp, session, url, filename, content):
+                    if _upload_bypass_confirmed(resp, session, url, filename, content, timeout):
                         found(f"File upload bypass succeeded!")
                         found(f"Endpoint: {url}")
                         found(f"Filename: {filename}")
@@ -143,7 +163,7 @@ def _check_upload_endpoints(base_url, session, scan_results):
                 pass
 
 
-def _check_backup_files(base_url, session, scan_results):
+def _check_backup_files(base_url, session, scan_results, timeout):
     backup_patterns = [
         "/backup.zip", "/backup.tar.gz", "/backup.sql",
         "/.git/config", "/.git/HEAD",
@@ -160,14 +180,14 @@ def _check_backup_files(base_url, session, scan_results):
     control_sig = _get_control_signature(
         base_url + "/eclipse_baseline_nonexistent_12345.xyz",
         session,
-        timeout=5,
+        timeout=timeout,
         allow_redirects=False,
     )
 
     for path in backup_patterns:
         url = base_url + path
         try:
-            resp = session.get(url, timeout=5, verify=False, allow_redirects=False)
+            resp = session.get(url, timeout=timeout, verify=False, allow_redirects=False)
             if resp.status_code == 200 and len(resp.text) > 10 and _differs_from_control(resp, control_sig):
                 severity = "CRITICAL" if any(x in path for x in [".env", ".git", "phpinfo", "config", ".sql"]) else "MEDIUM"
                 found(f"Sensitive file exposed: {path}")
@@ -178,11 +198,13 @@ def _check_backup_files(base_url, session, scan_results):
                     "payload":  "GET request",
                     "severity": severity,
                 })
+                scan_results["sensitive_file_found"] = True
         except requests.RequestException:
             pass
 
 
 def _get_control_signature(url, session, timeout=5, allow_redirects=False):
+    """Return a baseline status/body-size signature for soft-404 comparison."""
     try:
         resp = session.get(url, timeout=timeout, verify=False, allow_redirects=allow_redirects)
         return (resp.status_code, len(resp.text))
@@ -192,7 +214,9 @@ def _get_control_signature(url, session, timeout=5, allow_redirects=False):
 
 def _differs_from_control(resp, control_sig):
     if control_sig is None:
-        return True
+        # Without a control response, a custom 200/soft-404 page cannot be
+        # distinguished from a genuinely exposed endpoint.
+        return False
 
     control_status, control_len = control_sig
     body_len = len(resp.text)
@@ -203,13 +227,14 @@ def _differs_from_control(resp, control_sig):
     return abs(body_len - control_len) > max(50, int(control_len * 0.10))
 
 
-def _upload_bypass_confirmed(resp, session, upload_url, filename, content):
+def _upload_bypass_confirmed(resp, session, upload_url, filename, content, timeout):
+    """Confirm an upload only when the response or retrievable file identifies it."""
     if _json_upload_response_matches(resp, filename):
         return True
 
     for candidate_url in _upload_file_candidates(resp, upload_url, filename):
         try:
-            check = session.get(candidate_url, timeout=8, verify=False, allow_redirects=True)
+            check = session.get(candidate_url, timeout=timeout, verify=False, allow_redirects=True)
             if check.status_code == 200 and content in check.content:
                 return True
         except requests.RequestException:

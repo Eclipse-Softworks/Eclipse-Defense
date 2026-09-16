@@ -36,7 +36,7 @@ class ConfigLoader:
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 config_data = json.load(f)
             cls._cache[config_name] = config_data
             logger.debug("Loaded config: %s", config_name)

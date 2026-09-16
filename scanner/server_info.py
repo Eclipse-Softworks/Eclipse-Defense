@@ -131,13 +131,38 @@ def _check_cookie_flags(cookies, scan_results):
     for cookie in cookies:
         flags = []
 
-        if not cookie.secure:
+        # Secure flag
+        if not getattr(cookie, "secure", False):
             flags.append("missing Secure flag")
-        if not cookie.has_nonstandard_attr("HttpOnly"):
+
+        # HttpOnly detection: cookie objects may expose attributes differently
+        http_only = False
+        if hasattr(cookie, "_rest") and isinstance(cookie._rest, dict):
+            lower_keys = {k.lower(): v for k, v in cookie._rest.items()}
+            if "httponly" in lower_keys:
+                http_only = True
+        elif hasattr(cookie, "rest") and isinstance(cookie.rest, dict):
+            lower_keys = {k.lower(): v for k, v in cookie.rest.items()}
+            if "httponly" in lower_keys:
+                http_only = True
+
+        if not http_only:
             flags.append("missing HttpOnly flag")
 
-        samesite = cookie._rest.get("SameSite", None) if hasattr(cookie, "_rest") else None
-        if not samesite:
+        # SameSite attribute: normalize lookup across possible dicts and casings
+        same_site = None
+        if hasattr(cookie, "_rest") and isinstance(cookie._rest, dict):
+            for k, v in cookie._rest.items():
+                if k.lower() == "samesite":
+                    same_site = v
+                    break
+        elif hasattr(cookie, "rest") and isinstance(cookie.rest, dict):
+            for k, v in cookie.rest.items():
+                if k.lower() == "samesite":
+                    same_site = v
+                    break
+
+        if not same_site:
             flags.append("missing SameSite attribute")
 
         if flags:

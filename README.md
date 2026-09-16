@@ -59,12 +59,25 @@ python main.py https://target.com/api -m rate --authorized
 # With custom timeout
 python main.py https://target.com --timeout 15 --authorized
 
+# Logs to a file and enables verbose debug output
+python main.py https://target.com --authorized --log-file eclipse.log --verbose
+
 # All modules explicitly
 python main.py https://target.com --all --authorized
 
 # All modules explicitly
 python main.py -u https://target.com --all --authorized
 ```
+
+## Validation
+
+```bash
+python -m unittest discover -v tests
+python -m ruff check .
+```
+
+The project also includes a GitHub Actions CI workflow that runs the existing unit tests
+and the lint checks on pull requests and pushes.
 
 ## Modules
 

@@ -114,7 +114,7 @@ def _check_protocol_version(protocol, scan_results):
 def _check_cipher_strength(cipher_name, cipher_bits, scan_results):
     config = load_tls_config()
     weak_ciphers = config["weak_ciphers"]
-    
+
     info(f"Cipher suite: {Color.CYAN}{cipher_name}{Color.RESET} ({cipher_bits} bits)")
 
     weak_found = [w for w in weak_ciphers if w.upper() in cipher_name.upper()]
@@ -233,7 +233,7 @@ def _check_certificate(cert, hostname, scan_results):
     else:
         match = any(_hostname_matches_san(hostname, san) for san in san_hosts)
         if match:
-            ok(f"Hostname matches certificate SAN")
+            ok("Hostname matches certificate SAN")
             result("PASS", "Hostname validated against SAN")
             scan_results["has_san"] = True
         else:

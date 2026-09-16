@@ -6,9 +6,7 @@ import urllib3
 import requests
 from urllib.parse import urlparse
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-from utils.colors import banner, section, result, info, found, ok, Color
+from utils.colors import banner, section, info, found, result, ok, Color
 from scanner import (
     check_tls,
     check_server_info,
@@ -17,6 +15,9 @@ from scanner import (
     check_filter_bypass,
     check_rate_limit,
 )
+
+# Disable insecure request warnings from urllib3 after imports
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger("eclipse")
 
@@ -57,16 +58,16 @@ def parse_args():
                         help="Optional path to write structured logs to")
     parser.add_argument("--verbose", action="store_true",
                         help="Enable verbose (debug) logging to console")
-    
+
     args = parser.parse_args()
-    
+
     # Support both positional and flag-based URL specification
     if args.url and args.url_flag:
         parser.error("specify the target URL once, either positionally or with -u/--url-flag")
 
     if args.url_flag:
         args.url = args.url_flag
-    
+
     if not args.url:
         parser.error("the following arguments are required: URL")
 
@@ -81,7 +82,7 @@ def parse_args():
         parsed_url.port
     except ValueError:
         parser.error("URL contains an invalid port")
-    
+
     return args
 
 
@@ -101,17 +102,18 @@ def print_summary(all_results):
                 if sev in severity_counts:
                     severity_counts[sev] += 1
 
-    print(f"\n  {Color.BOLD}Total vulnerabilities found: {Color.YELLOW}{len(total_vulns)}{Color.RESET}")
-    print()
-    print(f"  {Color.RED}{Color.BOLD}CRITICAL : {severity_counts['CRITICAL']}{Color.RESET}")
-    print(f"  {Color.RED}HIGH     : {severity_counts['HIGH']}{Color.RESET}")
-    print(f"  {Color.YELLOW}MEDIUM   : {severity_counts['MEDIUM']}{Color.RESET}")
-    print(f"  {Color.CYAN}LOW      : {severity_counts['LOW']}{Color.RESET}")
+    # Summary header
+    info(f"Total vulnerabilities found: {len(total_vulns)}")
+
+    result("CRITICAL", f"CRITICAL : {severity_counts['CRITICAL']}")
+    result("HIGH",     f"HIGH     : {severity_counts['HIGH']}")
+    result("MEDIUM",   f"MEDIUM   : {severity_counts['MEDIUM']}")
+    result("LOW",      f"LOW      : {severity_counts['LOW']}")
 
     if total_vulns:
-        print(f"\n  {Color.BOLD}{Color.WHITE}Vulnerability Breakdown:{Color.RESET}")
+        section("VULNERABILITY BREAKDOWN")
         for v in total_vulns:
-            sev  = v.get("severity", "LOW")
+            sev = v.get("severity", "LOW")
             vtype = v.get("type", "Unknown")
             param = v.get("param", "-")
             colors = {
@@ -121,10 +123,11 @@ def print_summary(all_results):
                 "LOW":      Color.CYAN,
             }
             c = colors.get(sev.upper(), Color.WHITE)
-            print(f"  {c}[{sev}]{Color.RESET} {vtype} ({Color.GRAY}param: {param}{Color.RESET})")
+            info(f"{c}[{sev}]{Color.RESET} {vtype} (param: {param})")
     else:
-        print(f"\n  {Color.GREEN}{Color.BOLD}No vulnerabilities detected in this scan.{Color.RESET}")
-    print(f"\n  {Color.GRAY}Scan completed at: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}{Color.RESET}")
+        ok("No vulnerabilities detected in this scan.")
+
+    info(f"Scan completed at: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
 
 
 def run_module(name, label, func, url, session, timeout):
@@ -161,14 +164,12 @@ def main():
     selected = args.modules if args.modules else list(MODULES.keys())
 
     if ACTIVE_MODULES.intersection(selected) and not args.authorized:
-        print(f"{Color.RED}[!] Active modules send requests beyond passive inspection. "
-              f"Re-run with --authorized after confirming scope.{Color.RESET}")
+        found("Active modules send requests beyond passive inspection. Re-run with --authorized after confirming scope.")
         sys.exit(2)
 
-    print(f"  {Color.BOLD}Target  : {Color.CYAN}{url}{Color.RESET}")
-    print(f"  {Color.BOLD}Modules : {Color.CYAN}{', '.join(selected)}{Color.RESET}")
-    print(f"  {Color.BOLD}Timeout : {Color.CYAN}{args.timeout}s{Color.RESET}")
-    print()
+    info(f"Target  : {url}")
+    info(f"Modules : {', '.join(selected)}")
+    info(f"Timeout : {args.timeout}s")
 
     session = requests.Session()
     session.headers.update({
@@ -185,7 +186,6 @@ def main():
         all_results[mod_key] = res
 
     print_summary(all_results)
-    print()
 
 
 if __name__ == "__main__":

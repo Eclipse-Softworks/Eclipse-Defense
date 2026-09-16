@@ -7,7 +7,7 @@ from utils.config_loader import load_tls_config
 
 
 def check_tls(target_url, timeout=10):
-    """Inspect the negotiated TLS connection, certificate, and legacy protocol support."""
+    """Inspect TLS connection, certificate, and legacy protocol support."""
     section("TLS / SSL SECURITY ASSESSMENT")
 
     parsed = urlparse(target_url)
@@ -37,8 +37,8 @@ def check_tls(target_url, timeout=10):
                 info(f"Connected to {Color.CYAN}{hostname}:{port}{Color.RESET}")
 
                 scan_results["protocol"] = protocol
-                scan_results["cipher"]   = cipher_name
-                scan_results["bits"]     = cipher_bits
+                scan_results["cipher"] = cipher_name
+                scan_results["bits"] = cipher_bits
 
                 _check_protocol_version(protocol, scan_results)
                 _check_cipher_strength(cipher_name, cipher_bits, scan_results)
@@ -167,9 +167,9 @@ def _check_certificate(cert, hostname, scan_results):
     fmt = "%b %d %H:%M:%S %Y %Z"
 
     try:
-        not_after  = datetime.datetime.strptime(not_after_str, fmt)
+        not_after = datetime.datetime.strptime(not_after_str, fmt)
         not_before = datetime.datetime.strptime(not_before_str, fmt)
-        now        = datetime.datetime.utcnow()
+        now = datetime.datetime.utcnow()
 
         days_left = (not_after - now).days
 
@@ -218,7 +218,9 @@ def _check_certificate(cert, hostname, scan_results):
 
     sans = cert.get("subjectAltName", ())
     san_hosts = [v for t, v in sans if t == "DNS"]
-    info(f"Subject Alt Names (SAN): {Color.CYAN}{', '.join(san_hosts) if san_hosts else 'None'}{Color.RESET}")
+    san_join = ", ".join(san_hosts) if san_hosts else "None"
+    san_info = f"Subject Alt Names (SAN): {Color.CYAN}{san_join}{Color.RESET}"
+    info(san_info)
 
     if not san_hosts:
         result("MEDIUM", "No SAN entries found in certificate")
@@ -237,14 +239,18 @@ def _check_certificate(cert, hostname, scan_results):
             result("PASS", "Hostname validated against SAN")
             scan_results["has_san"] = True
         else:
-            found(f"Hostname {hostname} NOT found in SANs: {san_hosts}")
+            san_list = ", ".join(san_hosts)
+            found(
+                f"Hostname {hostname} NOT found in SANs: "
+                f"{san_list}"
+            )
             result("HIGH", "Hostname mismatch with certificate SAN")
             scan_results["has_san"] = False
             _add_vulnerability(
                 scan_results,
                 "Certificate Hostname Mismatch",
                 hostname,
-                ", ".join(san_hosts),
+                san_list,
                 "HIGH",
             )
 
@@ -261,10 +267,12 @@ def _hostname_matches_san(hostname, san):
 
 
 def _check_weak_protocol_support(hostname, port, scan_results, timeout=10):
-    """Attempt legacy TLS versions to determine whether the server still accepts them."""
+    """Attempt legacy TLS versions to detect support."""
     weak_versions = {
-        "TLS 1.0": ssl.TLSVersion.TLSv1   if hasattr(ssl.TLSVersion, "TLSv1")   else None,
-        "TLS 1.1": ssl.TLSVersion.TLSv1_1 if hasattr(ssl.TLSVersion, "TLSv1_1") else None,
+        "TLS 1.0": ssl.TLSVersion.TLSv1 if hasattr(ssl.TLSVersion, "TLSv1") else None,
+        "TLS 1.1": ssl.TLSVersion.TLSv1_1
+        if hasattr(ssl.TLSVersion, "TLSv1_1")
+        else None,
     }
 
     for label, version in weak_versions.items():
@@ -273,7 +281,7 @@ def _check_weak_protocol_support(hostname, port, scan_results, timeout=10):
         try:
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ctx.check_hostname = False
-            ctx.verify_mode    = ssl.CERT_NONE
+            ctx.verify_mode = ssl.CERT_NONE
             ctx.minimum_version = version
             ctx.maximum_version = version
             with socket.create_connection((hostname, port), timeout=timeout) as sock:

@@ -9,7 +9,7 @@ from utils.config_loader import load_filter_config
 def check_filter_bypass(target_url, session=None, timeout=10):
     """Probe query, method, body, and header handling for filter bypass signals."""
     section("CLIENT-SIDE FILTER BYPASS DETECTION")
-    
+
     config = load_filter_config()
     client_filter_params = config["client_filter_params"]
 
@@ -63,7 +63,7 @@ def _test_xss(base_url, param, params, session, scan_results, timeout):
     """Send configured XSS probes and record unencoded reflected payloads."""
     config = load_filter_config()
     xss_payloads = config["xss_payloads"]
-    
+
     xss_detected = False
 
     for payload in xss_payloads:
@@ -81,7 +81,7 @@ def _test_xss(base_url, param, params, session, scan_results, timeout):
             unencoded_tags  = re.search(r"<script[^>]*>|<img[^>]+onerror|<svg[^>]+onload|onerror=alert|onload=alert", body_lower)
 
             if payload_lower in body_lower and unencoded_tags:
-                found(f"Reflected XSS detected!")
+                found("Reflected XSS detected!")
                 found(f"    Parameter: {param}")
                 found(f"    Payload:   {payload}")
                 result("HIGH", f"Reflected XSS via '{param}': payload reflected unencoded")
@@ -96,7 +96,7 @@ def _test_xss(base_url, param, params, session, scan_results, timeout):
                 break
 
             if payload_lower in body_lower:
-                found(f"Input reflected unfiltered (potential XSS):")
+                found("Input reflected unfiltered (potential XSS):")
                 found(f"    Parameter: {param}")
                 found(f"    Payload:   {payload}")
                 result("MEDIUM", f"Input reflected without encoding in '{param}'")
@@ -118,7 +118,7 @@ def _test_sqli(base_url, param, params, session, scan_results, timeout):
     config = load_filter_config()
     sql_injection_payloads = config["sql_injection_payloads"]
     sql_error_patterns = config["sql_error_patterns"]
-    
+
     sqli_detected = False
     baseline_time = None
     baseline_body = ""
@@ -149,7 +149,7 @@ def _test_sqli(base_url, param, params, session, scan_results, timeout):
             for pattern in sql_error_patterns:
                 if (re.search(pattern, body, re.IGNORECASE)
                         and not re.search(pattern, baseline_body, re.IGNORECASE)):
-                    found(f"SQL error signature detected!")
+                    found("SQL error signature detected!")
                     found(f"    Parameter: {param}")
                     found(f"    Payload:   {payload}")
                     found(f"    Pattern:   {pattern}")

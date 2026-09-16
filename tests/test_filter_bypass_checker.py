@@ -50,14 +50,22 @@ class FilterBypassTests(unittest.TestCase):
             "xss_payloads": ["<script>alert(1)</script>"],
             "client_filter_params": ["q"],
             "sql_injection_payloads": [],
-            "sql_error_patterns": []
+            "sql_error_patterns": [],
         }
 
         session = _Session("<script>alert(1)</script>")
-        results = check_filter_bypass("https://example.test/?q=test", session, timeout=1)
+        results = check_filter_bypass(
+            "https://example.test/?q=test", session, timeout=1
+        )
 
         self.assertTrue(results["xss_found"] or results["vulnerabilities"])
-        self.assertTrue(any(v["type"].startswith("Reflected XSS") or v["type"].startswith("Potential XSS") for v in results.get("vulnerabilities", [])))
+        self.assertTrue(
+            any(
+                v["type"].startswith("Reflected XSS")
+                or v["type"].startswith("Potential XSS")
+                for v in results.get("vulnerabilities", [])
+            )
+        )
 
 
 if __name__ == "__main__":

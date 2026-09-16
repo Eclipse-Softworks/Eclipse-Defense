@@ -37,7 +37,11 @@ class _MockTLSSock:
 class TlsCheckerTests(unittest.TestCase):
     def test_valid_certificate_and_cipher_are_reported(self):
         # Patch ssl.create_default_context and socket.create_connection
-        cert = {"notAfter": "Dec 31 23:59:59 2099 GMT", "notBefore": "Jan 01 00:00:00 2020 GMT", "subjectAltName": [("DNS", "example.test")], }
+        cert = {
+            "notAfter": "Dec 31 23:59:59 2099 GMT",
+            "notBefore": "Jan 01 00:00:00 2020 GMT",
+            "subjectAltName": [("DNS", "example.test")],
+        }
         proto = "TLSv1.2"
         cipher = ("TLS_AES_128_GCM_SHA256", "TLSv1.3", 128)
 
@@ -45,6 +49,7 @@ class TlsCheckerTests(unittest.TestCase):
         original_socket_conn = tls_mod.socket.create_connection
 
         try:
+
             class MockCtx:
                 def wrap_socket(self, sock, server_hostname=None):
                     return _MockTLSSock(cert, proto, cipher)

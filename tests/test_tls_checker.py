@@ -1,5 +1,4 @@
 import unittest
-from types import SimpleNamespace
 
 import scanner.tls_checker as tls_mod
 

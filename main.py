@@ -22,12 +22,12 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger("eclipse")
 
 MODULES = {
-    "tls":    ("TLS/SSL",                    check_tls),
-    "server": ("Server Fingerprint",         check_server_info),
-    "rce":    ("Remote Code Execution",      check_rce),
-    "file":   ("File Overwrite/Traversal",   check_file_overwrite),
-    "filter": ("Client Filter Bypass",       check_filter_bypass),
-    "rate":   ("Rate Limiting",               check_rate_limit),
+    "tls": ("TLS/SSL", check_tls),
+    "server": ("Server Fingerprint", check_server_info),
+    "rce": ("Remote Code Execution", check_rce),
+    "file": ("File Overwrite/Traversal", check_file_overwrite),
+    "filter": ("Client Filter Bypass", check_filter_bypass),
+    "rate": ("Rate Limiting", check_rate_limit),
 }
 ACTIVE_MODULES = {"rce", "file", "filter", "rate"}
 
@@ -39,31 +39,57 @@ def parse_args():
         description="Eclipse Softworks Cyber Defense Scanner",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("url", nargs="?", help="Target URL to scan (positional or with -u flag)")
-    parser.add_argument("-u", "--url-flag", dest="url_flag", help="Target URL to scan (flag format)")
-    parser.add_argument("-m", "--modules", nargs="+",
-                        choices=list(MODULES.keys()),
-                        help="Modules to run (default: all)")
-    parser.add_argument("--all",           action="store_true",
-                        help="Run all modules (default behavior)")
-    parser.add_argument("--timeout",       type=int, default=10,
-                        help="Request timeout in seconds (default: 10)")
-    parser.add_argument("--no-color",      action="store_true",
-                        help="Disable colored output")
-    parser.add_argument("--authorized",    action="store_true",
-                        help="Confirm you are authorized to run active probes")
+    parser.add_argument(
+        "url", nargs="?", help="Target URL to scan (positional or with -u flag)"
+    )
+    parser.add_argument(
+        "-u", "--url-flag", dest="url_flag", help="Target URL to scan (flag format)"
+    )
+    parser.add_argument(
+        "-m",
+        "--modules",
+        nargs="+",
+        choices=list(MODULES.keys()),
+        help="Modules to run (default: all)",
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="Run all modules (default behavior)"
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=10,
+        help="Request timeout in seconds (default: 10)",
+    )
+    parser.add_argument(
+        "--no-color", action="store_true", help="Disable colored output"
+    )
+    parser.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm you are authorized to run active probes",
+    )
 
     # Logging options
-    parser.add_argument("--log-file", type=str, default=None,
-                        help="Optional path to write structured logs to")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Enable verbose (debug) logging to console")
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        default=None,
+        help="Optional path to write structured logs to",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose (debug) logging to console",
+    )
 
     args = parser.parse_args()
 
     # Support both positional and flag-based URL specification
     if args.url and args.url_flag:
-        parser.error("specify the target URL once, either positionally or with -u/--url-flag")
+        parser.error(
+            "specify the target URL once, either positionally or with -u/--url-flag"
+        )
 
     if args.url_flag:
         args.url = args.url_flag
@@ -106,9 +132,9 @@ def print_summary(all_results):
     info(f"Total vulnerabilities found: {len(total_vulns)}")
 
     result("CRITICAL", f"CRITICAL : {severity_counts['CRITICAL']}")
-    result("HIGH",     f"HIGH     : {severity_counts['HIGH']}")
-    result("MEDIUM",   f"MEDIUM   : {severity_counts['MEDIUM']}")
-    result("LOW",      f"LOW      : {severity_counts['LOW']}")
+    result("HIGH", f"HIGH     : {severity_counts['HIGH']}")
+    result("MEDIUM", f"MEDIUM   : {severity_counts['MEDIUM']}")
+    result("LOW", f"LOW      : {severity_counts['LOW']}")
 
     if total_vulns:
         section("VULNERABILITY BREAKDOWN")
@@ -118,9 +144,9 @@ def print_summary(all_results):
             param = v.get("param", "-")
             colors = {
                 "CRITICAL": Color.RED + Color.BOLD,
-                "HIGH":     Color.RED,
-                "MEDIUM":   Color.YELLOW,
-                "LOW":      Color.CYAN,
+                "HIGH": Color.RED,
+                "MEDIUM": Color.YELLOW,
+                "LOW": Color.CYAN,
             }
             c = colors.get(sev.upper(), Color.WHITE)
             info(f"{c}[{sev}]{Color.RESET} {vtype} (param: {param})")
@@ -134,7 +160,11 @@ def run_module(name, label, func, url, session, timeout):
     """Run one scanner module and convert an unexpected failure into a result."""
     try:
         start = time.time()
-        res = func(url, timeout=timeout) if name == "tls" else func(url, session, timeout=timeout)
+        res = (
+            func(url, timeout=timeout)
+            if name == "tls"
+            else func(url, session, timeout=timeout)
+        )
         elapsed = time.time() - start
         info(f"Module '{label}' completed in {elapsed:.2f}s")
         return res
@@ -152,7 +182,11 @@ def main():
     handlers = [logging.StreamHandler()]
     if args.log_file:
         handlers.append(logging.FileHandler(args.log_file))
-    logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s", handlers=handlers)
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=handlers,
+    )
     logger.setLevel(log_level)
 
     if args.no_color:
@@ -164,7 +198,11 @@ def main():
     selected = args.modules if args.modules else list(MODULES.keys())
 
     if ACTIVE_MODULES.intersection(selected) and not args.authorized:
-        found("Active modules send requests beyond passive inspection. Re-run with --authorized after confirming scope.")
+        msg = (
+            "Active modules send requests beyond passive inspection. "
+            "Re-run with --authorized after confirming scope."
+        )
+        found(msg)
         sys.exit(2)
 
     info(f"Target  : {url}")
@@ -174,8 +212,8 @@ def main():
     session = requests.Session()
     session.headers.update({
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/124.0.0.0 Safari/537.36"
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
     })
 
     all_results = {}

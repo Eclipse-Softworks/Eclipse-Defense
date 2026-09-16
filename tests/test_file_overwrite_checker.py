@@ -23,7 +23,9 @@ class BackupFileReportingTests(unittest.TestCase):
         _check_backup_files("https://example.test", _Session(), results, timeout=1)
 
         self.assertTrue(results["sensitive_file_found"])
-        self.assertEqual(results["vulnerabilities"][0]["type"], "Sensitive File Exposure")
+        self.assertEqual(
+            results["vulnerabilities"][0]["type"], "Sensitive File Exposure"
+        )
 
 
 if __name__ == "__main__":

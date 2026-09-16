@@ -44,7 +44,7 @@ def _check_path_traversal(target_url, parsed, params, session, scan_results, tim
     config = load_file_config()
     file_param_names = config["file_param_names"]
     file_traversal_payloads = config["file_traversal_payloads"]
-    
+
     base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
     param_names = list(params.keys()) if params else file_param_names[:5]
@@ -52,7 +52,7 @@ def _check_path_traversal(target_url, parsed, params, session, scan_results, tim
 
     for param in param_names:
         baseline_params = {p: (v[0] if isinstance(v, list) else v)
-                           for p, v in (params.items() if params else {p: "" for p in param_names}.items())}
+                           for p, v in (params.items() if params else dict.fromkeys(param_names, "").items())}
         baseline_params[param] = "eclipse_baseline_probe_12345"
         try:
             baseline_body = session.get(
@@ -65,7 +65,7 @@ def _check_path_traversal(target_url, parsed, params, session, scan_results, tim
 
         for payload in file_traversal_payloads:
             test_params = {p: (v[0] if isinstance(v, list) else v)
-                           for p, v in (params.items() if params else {p: "" for p in param_names}.items())}
+                           for p, v in (params.items() if params else dict.fromkeys(param_names, "").items())}
             test_params[param] = payload
 
             try:
@@ -75,7 +75,7 @@ def _check_path_traversal(target_url, parsed, params, session, scan_results, tim
 
                 if (_detect_file_content(body, payload)
                         and not _detect_file_content(baseline_body, payload)):
-                    found(f"Path traversal confirmed!")
+                    found("Path traversal confirmed!")
                     found(f"    Parameter: {param}")
                     found(f"    Payload:   {payload}")
                     result("CRITICAL", f"Directory traversal via '{param}' with payload '{payload}'")
@@ -110,7 +110,7 @@ def _check_upload_endpoints(base_url, session, scan_results, timeout):
     config = load_file_config()
     upload_endpoints = config["upload_endpoints"]
     file_upload_bypass_payloads = config["file_upload_bypass_payloads"]
-    
+
     info(f"Probing {len(upload_endpoints)} potential upload endpoints")
 
     found_endpoints = []
@@ -146,7 +146,7 @@ def _check_upload_endpoints(base_url, session, scan_results, timeout):
 
                 if resp.status_code in (200, 201, 202):
                     if _upload_bypass_confirmed(resp, session, url, filename, content, timeout):
-                        found(f"File upload bypass succeeded!")
+                        found("File upload bypass succeeded!")
                         found(f"Endpoint: {url}")
                         found(f"Filename: {filename}")
                         found(f"MIME:     {mime}")

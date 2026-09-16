@@ -17,10 +17,10 @@ class _Session:
         self.headers = {}
 
     def get(self, url, params=None, **_kwargs):
-        # If the params include the probe payload, return a body that matches the RCE pattern
+        # If params contain the probe payload, return a matching RCE body
         if params and any(self.probe_payload == v for v in (params.values())):
             return _Response("uid=1000(root) gid=1000(root)")
-        # For header-based log4shell tests, the rce_checker sends header payloads directly
+        # For header-based Log4Shell tests the checker sends payloads in headers
         return _Response("normal page content")
 
 
@@ -31,16 +31,26 @@ class RceCheckerTests(unittest.TestCase):
 
         rce_mod.load_rce_config = lambda: {
             "rce_payloads": [
-                {"name": "Basic Unix command injection (semicolon)", "payload": ";id", "pattern": "uid=\\d+", "severity": "CRITICAL"}
+                {
+                    "name": "Basic Unix command injection (semicolon)",
+                    "payload": ";id",
+                    "pattern": "uid=\\d+",
+                    "severity": "CRITICAL",
+                }
             ],
-            "common_query_params": ["q"]
+            "common_query_params": ["q"],
         }
 
         session = _Session(";id")
         results = check_rce("https://example.test/?q=test", session, timeout=1)
 
         self.assertTrue(results["rce_found"] or results["vulnerabilities"])
-        self.assertTrue(any("Basic Unix" in v.get("type") or "Basic Unix" in v.get("type", "") for v in results.get("vulnerabilities", [])))
+        self.assertTrue(
+            any(
+                "Basic Unix" in v.get("type") or "Basic Unix" in v.get("type", "")
+                for v in results.get("vulnerabilities", [])
+            )
+        )
 
 
 if __name__ == "__main__":

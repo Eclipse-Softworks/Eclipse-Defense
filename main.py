@@ -1,6 +1,7 @@
 import argparse
 import sys
 import time
+import logging
 import urllib3
 import requests
 from urllib.parse import urlparse
@@ -16,6 +17,8 @@ from scanner import (
     check_filter_bypass,
     check_rate_limit,
 )
+
+logger = logging.getLogger("eclipse")
 
 MODULES = {
     "tls":    ("TLS/SSL",                    check_tls),
@@ -48,6 +51,12 @@ def parse_args():
                         help="Disable colored output")
     parser.add_argument("--authorized",    action="store_true",
                         help="Confirm you are authorized to run active probes")
+
+    # Logging options
+    parser.add_argument("--log-file", type=str, default=None,
+                        help="Optional path to write structured logs to")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Enable verbose (debug) logging to console")
     
     args = parser.parse_args()
     
@@ -134,6 +143,14 @@ def run_module(name, label, func, url, session, timeout):
 def main():
     """Validate the target, create the shared HTTP session, and run selected modules."""
     args = parse_args()
+
+    # Configure logging based on flags
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    handlers = [logging.StreamHandler()]
+    if args.log_file:
+        handlers.append(logging.FileHandler(args.log_file))
+    logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s", handlers=handlers)
+    logger.setLevel(log_level)
 
     if args.no_color:
         Color.disable()

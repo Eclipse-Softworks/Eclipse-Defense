@@ -8,7 +8,7 @@ from utils.config_loader import load_rce_config
 def check_rce(target_url, session=None, timeout=10):
     """Probe configured parameters for RCE/SSTI evidence using per-parameter baselines."""
     section("REMOTE CODE EXECUTION (RCE) DETECTION")
-    
+
     config = load_rce_config()
     common_query_params = config["common_query_params"]
     rce_payloads = config["rce_payloads"]
@@ -45,7 +45,7 @@ def check_rce(target_url, session=None, timeout=10):
     def get_baseline(param):
         if param not in baseline_bodies:
             baseline_params = {p: (v[0] if isinstance(v, list) else v)
-                                for p, v in (params.items() if params else {p: "" for p in param_names}.items())}
+                                for p, v in (params.items() if params else dict.fromkeys(param_names, "").items())}
             baseline_params[param] = "eclipse_baseline_probe_12345"
             try:
                 resp = s.get(base_url, params=baseline_params, timeout=timeout, verify=False, allow_redirects=True)
@@ -58,7 +58,7 @@ def check_rce(target_url, session=None, timeout=10):
         baseline_body = get_baseline(param)
         for probe in rce_payloads:
             test_params = {p: (v[0] if isinstance(v, list) else v)
-                           for p, v in (params.items() if params else {p: "" for p in param_names}.items())}
+                           for p, v in (params.items() if params else dict.fromkeys(param_names, "").items())}
             test_params[param] = probe["payload"]
 
             try:

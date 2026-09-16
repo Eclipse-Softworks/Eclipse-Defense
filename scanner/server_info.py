@@ -39,8 +39,10 @@ def _detect_server(headers, scan_results):
     raw_server = headers.get("server", "")
     raw_powered = headers.get("x-powered-by", "")
 
-    info(f"Server header:      {Color.YELLOW}{raw_server or '(not disclosed)'}{Color.RESET}")
-    info(f"X-Powered-By:       {Color.YELLOW}{raw_powered or '(not disclosed)'}{Color.RESET}")
+    raw_server_display = raw_server or '(not disclosed)'
+    raw_powered_display = raw_powered or '(not disclosed)'
+    info(f"Server header:      {Color.YELLOW}{raw_server_display}{Color.RESET}")
+    info(f"X-Powered-By:       {Color.YELLOW}{raw_powered_display}{Color.RESET}")
 
     detected = []
     combined = (raw_server + " " + raw_powered).lower()
@@ -59,11 +61,16 @@ def _detect_server(headers, scan_results):
 
     if raw_server and any(c.isdigit() for c in raw_server):
         found(f"Server version disclosed in header: {raw_server}")
-        result("MEDIUM", "Server version number is exposed - remove or genericize Server header")
+        result(
+            "MEDIUM",
+            "Server version number is exposed - remove or genericize Server header",
+        )
         scan_results["version_disclosed"] = True
         scan_results.setdefault("vulnerabilities", []).append({
-            "type": "Server Version Disclosure", "param": "Server",
-            "payload": raw_server, "severity": "MEDIUM",
+            "type": "Server Version Disclosure",
+            "param": "Server",
+            "payload": raw_server,
+            "severity": "MEDIUM",
         })
     else:
         scan_results["version_disclosed"] = False
@@ -94,8 +101,10 @@ def _check_security_headers(headers, scan_results, is_https=True):
             result(severity, f"Header not set: {label}")
             missing.append((label, severity))
             scan_results.setdefault("vulnerabilities", []).append({
-                "type": "Missing Security Header", "param": header_key,
-                "payload": label, "severity": severity,
+                "type": "Missing Security Header",
+                "param": header_key,
+                "payload": label,
+                "severity": severity,
             })
 
     scan_results["missing_security_headers"] = missing
@@ -109,23 +118,36 @@ def _check_information_disclosure(headers, scan_results):
     disclosed = []
 
     for h in risky_headers:
-        if h in headers and h not in ("strict-transport-security", "content-security-policy"):
+        if h in headers and h not in (
+            "strict-transport-security",
+            "content-security-policy",
+        ):
             val = headers[h]
-            if h in ("server", "x-powered-by", "x-aspnet-version", "x-aspnetmvc-version",
-                      "x-generator", "x-backend-server", "x-runtime"):
-                found(f"Technology disclosure - {h}: {val}")
+            if h in (
+                "server",
+                "x-powered-by",
+                "x-aspnet-version",
+                "x-aspnetmvc-version",
+                "x-generator",
+                "x-backend-server",
+                "x-runtime",
+            ):
+                tech_msg = f"Technology disclosure - {h}: {val}"
+                found(tech_msg)
                 result("LOW", f"Header leaks tech info: {h}: {val}")
                 disclosed.append(h)
                 scan_results.setdefault("vulnerabilities", []).append({
-                    "type": "Technology Disclosure", "param": h,
-                    "payload": val, "severity": "LOW",
+                    "type": "Technology Disclosure",
+                    "param": h,
+                    "payload": val,
+                    "severity": "LOW",
                 })
 
     scan_results["disclosed_headers"] = disclosed
 
 
 def _check_cookie_flags(cookies, scan_results):
-    """Record cookies whose transport, script-access, or SameSite controls are absent."""
+    """Record cookies missing Secure, HttpOnly, or SameSite flags."""
     issues = []
 
     for cookie in cookies:
@@ -166,12 +188,16 @@ def _check_cookie_flags(cookies, scan_results):
             flags.append("missing SameSite attribute")
 
         if flags:
-            found(f"Cookie '{cookie.name}': {', '.join(flags)}")
-            result("MEDIUM", f"Insecure cookie: {cookie.name} - {', '.join(flags)}")
+            cookie_issues_str = ", ".join(flags)
+            cookie_msg = f"Cookie '{cookie.name}': {cookie_issues_str}"
+            found(cookie_msg)
+            result("MEDIUM", f"Insecure cookie: {cookie.name} - {cookie_issues_str}")
             issues.append({"name": cookie.name, "issues": flags})
             scan_results.setdefault("vulnerabilities", []).append({
-                "type": "Insecure Cookie", "param": cookie.name,
-                "payload": ", ".join(flags), "severity": "MEDIUM",
+                "type": "Insecure Cookie",
+                "param": cookie.name,
+                "payload": cookie_issues_str,
+                "severity": "MEDIUM",
             })
         else:
             ok(f"Cookie '{cookie.name}' has secure flags set")

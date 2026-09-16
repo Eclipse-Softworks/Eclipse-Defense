@@ -146,7 +146,7 @@ def _check_information_disclosure(headers, scan_results):
     scan_results["disclosed_headers"] = disclosed
 
 
-def _check_cookie_flags(cookies, scan_results):
+def _check_cookie_flags(cookies, scan_results):  # noqa: C901
     """Record cookies missing Secure, HttpOnly, or SameSite flags."""
     issues = []
 

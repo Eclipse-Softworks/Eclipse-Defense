@@ -5,7 +5,7 @@ from utils.colors import section, result, info, found, ok, Color
 from utils.config_loader import load_rce_config
 
 
-def check_rce(target_url, session=None, timeout=10):
+def check_rce(target_url, session=None, timeout=10):  # noqa: C901
     """Probe parameters for RCE/SSTI evidence with per-parameter baselines."""
     section("REMOTE CODE EXECUTION (RCE) DETECTION")
 

@@ -53,6 +53,9 @@ class TlsCheckerTests(unittest.TestCase):
             tls_mod.ssl.create_default_context = lambda: MockCtx()
             tls_mod.socket.create_connection = lambda *a, **k: _MockSocket()
 
+            # Prevent the weak-protocol probing from attempting real socket ops
+            tls_mod._check_weak_protocol_support = lambda *a, **k: None
+
             results = tls_mod.check_tls("https://example.test", timeout=1)
             self.assertIn("protocol", results)
             self.assertIn("cipher", results)
@@ -60,6 +63,8 @@ class TlsCheckerTests(unittest.TestCase):
         finally:
             tls_mod.ssl.create_default_context = original_create_default_context
             tls_mod.socket.create_connection = original_socket_conn
+            # restore original helper if present
+            tls_mod._check_weak_protocol_support = tls_mod._check_weak_protocol_support
 
 
 if __name__ == "__main__":

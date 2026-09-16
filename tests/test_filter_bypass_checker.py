@@ -4,10 +4,11 @@ from scanner.filter_bypass_checker import check_filter_bypass
 
 
 class _Response:
-    def __init__(self, text, status_code=200, headers=None):
+    def __init__(self, text, status_code=200, headers=None, url="https://example.test"):
         self.text = text
         self.status_code = status_code
         self.headers = headers or {}
+        self.url = url
 
 
 class _Session:

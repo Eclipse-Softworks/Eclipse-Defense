@@ -35,7 +35,7 @@ def check_server_info(target_url, session=None, timeout=10):
 def _detect_server(headers, scan_results):
     config = load_server_config()
     known_servers = config["servers"]
-    
+
     raw_server = headers.get("server", "")
     raw_powered = headers.get("x-powered-by", "")
 
@@ -72,7 +72,7 @@ def _detect_server(headers, scan_results):
 def _check_security_headers(headers, scan_results, is_https=True):
     config = load_server_config()
     security_headers = config["security_headers"]
-    
+
     missing = []
     present = []
 
@@ -85,7 +85,7 @@ def _check_security_headers(headers, scan_results, is_https=True):
         # HTTPS; HTTP-only endpoints are already reported by the TLS module.
         if header_key == "strict-transport-security" and not is_https:
             continue
-        
+
         if header_key in headers:
             ok(f"{label}: {Color.GRAY}{headers[header_key][:80]}{Color.RESET}")
             present.append(label)
@@ -105,7 +105,7 @@ def _check_security_headers(headers, scan_results, is_https=True):
 def _check_information_disclosure(headers, scan_results):
     config = load_server_config()
     risky_headers = config["risky_headers"]
-    
+
     disclosed = []
 
     for h in risky_headers:

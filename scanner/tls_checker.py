@@ -169,7 +169,7 @@ def _check_certificate(cert, hostname, scan_results):
     try:
         not_after = datetime.datetime.strptime(not_after_str, fmt)
         not_before = datetime.datetime.strptime(not_before_str, fmt)
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         days_left = (not_after - now).days
 

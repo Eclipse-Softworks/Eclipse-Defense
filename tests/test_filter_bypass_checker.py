@@ -30,6 +30,16 @@ class _Session:
             body = "<script>eclipse_xss_probe_12345</script>"
         return _Response(body)
 
+    def options(self, url, **_kwargs):
+        # Return no Allow header by default
+        return _Response("", headers={})
+
+    def request(self, method, url, **_kwargs):
+        # Simulate TRACE method disabled by default
+        if method.upper() == "TRACE":
+            return _Response("", status_code=405)
+        return _Response("")
+
 
 class FilterBypassTests(unittest.TestCase):
     def test_detects_reflected_xss_via_query_param(self):

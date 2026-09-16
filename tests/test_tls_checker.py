@@ -27,6 +27,13 @@ class _MockTLSSock:
     def cipher(self):
         return self._cipher
 
+    # Support context manager protocol used by wrap_socket usage
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
 
 class TlsCheckerTests(unittest.TestCase):
     def test_valid_certificate_and_cipher_are_reported(self):
